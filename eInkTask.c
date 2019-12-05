@@ -709,13 +709,18 @@ void eInkTask(void)
     uint8_t pageNumber = 0;
 
 
+    eInkInit();
+
+    ShowStartupScreen();
+//	vTaskDelay(2000);
+
 	/* Show the instructions screen */
 
-//	for(;;)
-//	{
+	for(;;)
+	{
 		printf("1 \r\n");
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_ON);
-//		vTaskSuspend(NULL);
+		vTaskSuspend(NULL);
 
 		/* Using pageNumber as index, update the display with a demo screen
 			Following are the functions that are called in sequence
@@ -737,5 +742,5 @@ void eInkTask(void)
 		/* Cycle through demo pages */
 		pageNumber = (pageNumber+1) % NUMBER_OF_DEMO_PAGES;
 //		xSemaphoreGive(bleSemaphore);
-//	}
+	}
 }

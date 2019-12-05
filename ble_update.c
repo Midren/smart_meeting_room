@@ -114,33 +114,66 @@ void ble_task_process(void* pvParameters)
 	printf("2 \r\n");
 //	update_scr_task = *((TaskHandle_t*) pvParameters);
 	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
-    for(;;)
-    {
-    /* Enter low power mode. The call to enter_low_power_mode also causes the
-     * device to enter hibernate mode if the BLE stack is shutdown.
-     */
-//    enter_low_power_mode();
-    
-    if(mcwdt_intr_flag)
-    {
-        mcwdt_intr_flag = false;
-
-        /* Update CYBSP_USER_LED1 to indicate current BLE status */
-        if(CY_BLE_CONN_STATE_CONNECTED == Cy_BLE_GetConnectionState(app_conn_handle))
-        {
-            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
-        }
-        else
-        {
-            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
-        }
-
-    }
-
-	Cy_BLE_ProcessEvents();
-	taskYIELD();
-
-    }
+	for(;;) {
+		switch(curr_state) {
+			case MCU_STATE_DEEP_SLEEP: {
+				enter_low_power_mode();
+				break;
+			}
+			case MCU_STATE_CONNECTING: {
+				Cy_BLE_ProcessEvents();
+				if(CY_BLE_CONN_STATE_CLIENT_DISCOVERED == Cy_BLE_GetConnectionState(app_conn_handle)) {
+					curr_state = MCU_STATE_UPDATING_INFO;
+					readMsg();
+					cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
+				} else {
+					cyhal_gpio_toggle((cyhal_gpio_t)CYBSP_USER_LED1);
+				}
+				break;
+			}
+			case MCU_STATE_UPDATING_INFO: {
+				Cy_BLE_ProcessEvents();
+				break;
+			}
+			case MCU_STATE_UPDATING_DISPLAY: {
+				//TODO: add forming display
+				vTaskResume(update_scr_task);
+//				eInkTask();
+				curr_state = MCU_STATE_DEEP_SLEEP;
+				break;
+			}
+			case MCU_STATE_ERROR: {
+				break;
+			}
+		}
+	}
+//    for(;;)
+//    {
+//    /* Enter low power mode. The call to enter_low_power_mode also causes the
+//     * device to enter hibernate mode if the BLE stack is shutdown.
+//     */
+////    enter_low_power_mode();
+//
+//    if(mcwdt_intr_flag)
+//    {
+//        mcwdt_intr_flag = false;
+//
+//        /* Update CYBSP_USER_LED1 to indicate current BLE status */
+//        if(CY_BLE_CONN_STATE_CONNECTED == Cy_BLE_GetConnectionState(app_conn_handle))
+//        {
+//            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
+//        }
+//        else
+//        {
+//            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
+//        }
+//
+//    }
+//
+//	Cy_BLE_ProcessEvents();
+//	taskYIELD();
+//
+//    }
 }
 
 

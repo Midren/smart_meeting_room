@@ -133,9 +133,6 @@ int main(void)
 	printf("PSoC 6 MCU emWin E-Ink\r\n");
 	printf("**********************************************************\r\n");
 
-    eInkInit();
-//	vTaskDelay(2000);
-
 	__enable_irq();
 //
 //	if(Cy_MCWDT_Init(MCWDT_STRUCT0, &CYBSP_MCWDT_config) != 0) {
@@ -145,42 +142,9 @@ int main(void)
 
 	curr_state = MCU_STATE_CONNECTING;
 
-	for(;;) {
-		switch(curr_state) {
-			case MCU_STATE_DEEP_SLEEP: {
-				enter_low_power_mode();
-				break;
-			}
-			case MCU_STATE_CONNECTING: {
-				Cy_BLE_ProcessEvents();
-				if(CY_BLE_CONN_STATE_CLIENT_DISCOVERED == Cy_BLE_GetConnectionState(app_conn_handle)) {
-					curr_state = MCU_STATE_UPDATING_INFO;
-					readMsg();
-					cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
-				} else {
-					cyhal_gpio_toggle((cyhal_gpio_t)CYBSP_USER_LED1);
-				}
-				break;
-			}
-			case MCU_STATE_UPDATING_INFO: {
-				Cy_BLE_ProcessEvents();
-				break;
-			}
-			case MCU_STATE_UPDATING_DISPLAY: {
-				//TODO: add forming display
-				eInkTask();
-				curr_state = MCU_STATE_DEEP_SLEEP;
-				break;
-			}
-			case MCU_STATE_ERROR: {
-				break;
-			}
-		}
-	}
-
-//	xTaskCreate(eInkTask,"eInkTask", 2000,  NULL,  2,  &update_scr_task);
-//	xTaskCreate(ble_task_process, "ble_update", 2000, (void*) &update_scr_task, 1, NULL);
-//	vTaskStartScheduler();
+	xTaskCreate(eInkTask,"eInkTask", 2000,  NULL,  2,  &update_scr_task);
+	xTaskCreate(ble_task_process, "ble_update", 2000, (void*) &update_scr_task, 1, NULL);
+	vTaskStartScheduler();
 
 	while(1);// Will never get here
 }

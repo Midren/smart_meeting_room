@@ -43,7 +43,7 @@ SemaphoreHandle_t bleSemaphore;
 TaskHandle_t update_scr_task;
 
 
-void eInkTask(void);
+void eInkTask(void*);
 
 void eInkInit(void);
 

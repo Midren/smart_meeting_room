@@ -55,7 +55,8 @@ uint8_t data[4096];
 ********************************************************************************/
 #define BLESS_INTR_PRIORITY     (1u)
 #define MCWDT_INTR_PRIORITY     (7u)
-#define MCWDT_MATCH_VALUE       (8192u) /* for 0.25 sec with MCWDT clock 32768 Hz */
+//#define MCWDT_MATCH_VALUE       (1522000UL) /* for 0.25 sec with MCWDT clock 32768 Hz */
+#define MCWDT_MATCH_VALUE       (0xff0ffff0UL) /* for 0.25 sec with MCWDT clock 32768 Hz */
 
 /******************************************************************************
  * Function prototypes
@@ -63,6 +64,8 @@ uint8_t data[4096];
 void ble_task_init(void);
 void ble_task_process(void*);
 void enter_low_power_mode(void);
+//void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event);
+void mcwdt_interrupt_handler(void);
 
 typedef struct {
 	char* name;
@@ -73,9 +76,11 @@ typedef struct {
 
 typedef enum {
 	MCU_STATE_DEEP_SLEEP,
+	MCU_STATE_SHUT_DOWN_BLUETOOTH,
 	MCU_STATE_CONNECTING,
 	MCU_STATE_UPDATING_INFO,
 	MCU_STATE_UPDATING_DISPLAY,
+	MCU_STATE_UPDATING_DISPLAY_FINISHED,
 	MCU_STATE_ERROR
 } mcu_state_t;
 

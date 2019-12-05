@@ -59,7 +59,6 @@ static void ble_init(void);
 static void bless_interrupt_handler(void);
 static void stack_event_handler(uint32 event, void* eventParam);
 static void mcwdt_init(void);
-static void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event);
 static void ble_ias_callback(uint32 event, void *eventParam);
 
 
@@ -97,9 +96,19 @@ void ble_task_init(void)
     ble_init();
     
     /* Configure MCWDT */
-    mcwdt_init();
+//    mcwdt_init();
 }
 
+void readMsg() {
+	cy_stc_ble_gattc_read_req_t myVal = {
+		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_LINEDATA_SERVICE_INDEX].customServChar[CY_BLE_CUSTOMC_LINEDATA_DATA_CHAR_INDEX].customServCharHandle[0],
+		.connHandle = cy_ble_connHandle[0]
+	};
+
+	if(Cy_BLE_GATTC_ReadCharacteristicValue(&myVal) != CY_BLE_SUCCESS) {
+		printf("BLE GATTC read error \r\n");
+	}
+}
 
 /*******************************************************************************
 * Function Name: ble_findme_process
@@ -111,18 +120,24 @@ void ble_task_init(void)
 *******************************************************************************/
 void ble_task_process(void* pvParameters)
 {
-	printf("2 \r\n");
 //	update_scr_task = *((TaskHandle_t*) pvParameters);
 	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
 	for(;;) {
+//		printf("Count: %d\r\n", (int) Cy_MCWDT_GetCountCascaded(CYBSP_MCWDT_HW));
+		if(mcwdt_intr_flag) {
+			printf("Tried to print from irq\r\n");
+			mcwdt_intr_flag = false;
+		}
 		switch(curr_state) {
 			case MCU_STATE_DEEP_SLEEP: {
-				enter_low_power_mode();
+				printf("Entering low power mode \r\n");
+				Cy_BLE_Disable();
+				curr_state = MCU_STATE_SHUT_DOWN_BLUETOOTH;
 				break;
 			}
 			case MCU_STATE_CONNECTING: {
 				Cy_BLE_ProcessEvents();
-				if(CY_BLE_CONN_STATE_CLIENT_DISCOVERED == Cy_BLE_GetConnectionState(app_conn_handle)) {
+				if(Cy_BLE_GetConnectionState(app_conn_handle) == CY_BLE_CONN_STATE_CLIENT_DISCOVERED) {
 					curr_state = MCU_STATE_UPDATING_INFO;
 					readMsg();
 					cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
@@ -131,6 +146,7 @@ void ble_task_process(void* pvParameters)
 				}
 				break;
 			}
+			case MCU_STATE_SHUT_DOWN_BLUETOOTH:
 			case MCU_STATE_UPDATING_INFO: {
 				Cy_BLE_ProcessEvents();
 				break;
@@ -138,7 +154,9 @@ void ble_task_process(void* pvParameters)
 			case MCU_STATE_UPDATING_DISPLAY: {
 				//TODO: add forming display
 				vTaskResume(update_scr_task);
-//				eInkTask();
+				while(curr_state != MCU_STATE_UPDATING_DISPLAY_FINISHED) {
+					taskYIELD();
+				}
 				curr_state = MCU_STATE_DEEP_SLEEP;
 				break;
 			}
@@ -146,34 +164,8 @@ void ble_task_process(void* pvParameters)
 				break;
 			}
 		}
+		taskYIELD();
 	}
-//    for(;;)
-//    {
-//    /* Enter low power mode. The call to enter_low_power_mode also causes the
-//     * device to enter hibernate mode if the BLE stack is shutdown.
-//     */
-////    enter_low_power_mode();
-//
-//    if(mcwdt_intr_flag)
-//    {
-//        mcwdt_intr_flag = false;
-//
-//        /* Update CYBSP_USER_LED1 to indicate current BLE status */
-//        if(CY_BLE_CONN_STATE_CONNECTED == Cy_BLE_GetConnectionState(app_conn_handle))
-//        {
-//            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
-//        }
-//        else
-//        {
-//            cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
-//        }
-//
-//    }
-//
-//	Cy_BLE_ProcessEvents();
-//	taskYIELD();
-//
-//    }
 }
 
 
@@ -286,6 +278,7 @@ static void stack_event_handler(uint32_t event, void* eventParam)
         case CY_BLE_EVT_STACK_SHUTDOWN_COMPLETE:
         {
             printf("[INFO] : BLE shutdown complete\r\n");
+			enter_low_power_mode();
             break;
         }
 
@@ -451,13 +444,18 @@ void ble_ias_callback(uint32 event, void *eventParam)
 *  cyhal_lptimer_irq_event_t event (unused)
 *
 *******************************************************************************/
-void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event)
+//void mcwdt_interrupt_handler(void)
+//void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event)
+void mcwdt_interrupt_handler(void)
 {
     /* Set the interrupt flag */
     mcwdt_intr_flag = true;
 
     /* Reload the timer to get periodic interrupt */
-    cyhal_lptimer_reload(&mcwdt);
+//    cyhal_lptimer_reload(&mcwdt);
+
+    if(curr_state == MCU_STATE_SHUT_DOWN_BLUETOOTH)
+		curr_state = MCU_STATE_CONNECTING;
 }
 
 
@@ -474,7 +472,7 @@ static void mcwdt_init(void)
     cyhal_lptimer_set_time(&mcwdt, MCWDT_MATCH_VALUE);
     cyhal_lptimer_reload(&mcwdt);
     cyhal_lptimer_register_callback(&mcwdt, mcwdt_interrupt_handler, NULL);
-    cyhal_lptimer_enable_event(&mcwdt, CYHAL_LPTIMER_COMPARE_MATCH, 
+    cyhal_lptimer_enable_event(&mcwdt, CYHAL_LPTIMER_COMPARE_MATCH,
                                MCWDT_INTR_PRIORITY, true);
 }
 
@@ -495,23 +493,25 @@ static void mcwdt_init(void)
 void enter_low_power_mode(void)
 {
     /* Enter hibernate mode if BLE is turned off  */
-    if(CY_BLE_STATE_STOPPED == Cy_BLE_GetState())
-    {
-        printf("[INFO] : Entering hibernate mode\r\n");
-
+//    if(CY_BLE_STATE_STOPPED == Cy_BLE_GetState())
+//    {
+        printf("[INFO] : Entering deep sleep mode\r\n");
+//
         /* Turn of user LEDs */
         cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
-        cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED2, CYBSP_LED_STATE_OFF);
+        cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
 
-        /* Wait until UART transfer complete  */
-        while(0UL == Cy_SCB_UART_IsTxComplete(cy_retarget_io_uart_obj.base));
+//        /* Wait until UART transfer complete  */
+//        while(0UL == Cy_SCB_UART_IsTxComplete(cy_retarget_io_uart_obj.base));
 
-        Cy_SysPm_Hibernate();
-    }
-    else
-    {
+//        if(Cy_SysPm_Hibernate() != CY_SYSPM_SUCCESS) {
+//        	printf("[ERROR] Couldn't enter hibernate");
+//        }
+//    }
+//    else
+//    {
         Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
-    }
+//    }
 }
 
 

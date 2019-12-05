@@ -59,17 +59,6 @@ void handle_error(void)
     CY_ASSERT(0);
 }
 
-void readMsg() {
-	cy_stc_ble_gattc_read_req_t myVal = {
-		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_LINEDATA_SERVICE_INDEX].customServChar[CY_BLE_CUSTOMC_LINEDATA_DATA_CHAR_INDEX].customServCharHandle[0],
-		.connHandle = cy_ble_connHandle[0]
-	};
-
-	if(Cy_BLE_GATTC_ReadCharacteristicValue(&myVal) != CY_BLE_SUCCESS) {
-		printf("BLE GATTC read error \r\n");
-	}
-}
-
 /*******************************************************************************
 * Function Name: main
 ********************************************************************************
@@ -91,6 +80,7 @@ int main(void)
 
     /* Configure switch SW2 as hibernate wake up source */
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBPIN1_LOW);
+    Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBWDT);
 
     /* Unfreeze IO if device is waking up from hibernate */
     if(Cy_SysPm_GetIoFreezeStatus())
@@ -125,20 +115,43 @@ int main(void)
                               CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
     ble_task_init();
-    /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
 
+    static const cy_stc_sysint_t mcwdt_isr_config =
+    {
+      /* The MCWDT interrupt */
+      .intrSrc = (IRQn_Type)CYBSP_MCWDT_IRQ,
+
+      /* The interrupt priority number */
+      .intrPriority = MCWDT_INTR_PRIORITY
+    };
+
+    Cy_MCWDT_Unlock(CYBSP_MCWDT_HW);
+
+	Cy_MCWDT_Init(CYBSP_MCWDT_HW, &CYBSP_MCWDT_config);
+
+    Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1 | CY_MCWDT_CTR2);
+
+    /* Hook interrupt service routines for MCWDT */
+    if(Cy_SysInt_Init(&mcwdt_isr_config, mcwdt_interrupt_handler) != 0) {
+    	printf("Couldn't init mcwdt isr \r\n");
+    }
+    NVIC_EnableIRQ(mcwdt_isr_config.intrSrc);
+
+	Cy_MCWDT_Enable(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1, 93u);
+
+    Cy_MCWDT_Lock(CYBSP_MCWDT_HW);
+
+	__enable_irq();
+
+    /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
     printf("\x1b[2J\x1b[;H");
+
 
 	printf("**********************************************************\r\n");
 	printf("PSoC 6 MCU emWin E-Ink\r\n");
 	printf("**********************************************************\r\n");
-
-	__enable_irq();
-//
-//	if(Cy_MCWDT_Init(MCWDT_STRUCT0, &CYBSP_MCWDT_config) != 0) {
-//		printf("Couldn't init MCWDT\r\n");
-//	}
-//	Cy_MCWDT_Enable(MCWDT_STRUCT0, CY_MCWDT_COUNTER0 | CY_MCWDT_COUNTER1, 93u);
+    printf("Watchdogs enable status: %d, %d\r\n", (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
+    printf("Watchdogs mode status: %d, %d\r\n", (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
 
 	curr_state = MCU_STATE_CONNECTING;
 

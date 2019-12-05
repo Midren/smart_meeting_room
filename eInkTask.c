@@ -56,6 +56,7 @@
 #include "einkTask.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "ble_update.h"
 
 /* External global references */
 extern GUI_CONST_STORAGE GUI_BITMAP bmCypressLogoFullColor_PNG_1bpp;
@@ -673,17 +674,12 @@ void eInkInit(void) {
     /* Initialize EmWin driver*/
     GUI_Init();
 
-    printf("Initialized GUI \r\n");
     /* Start the eInk display interface and turn on the display power */
 	Cy_EINK_Start(20);
-    printf("Started eInk \r\n");
-//	bool ret = Cy_EINK_Power(1);
-	pv_eink_status_t st = Pv_EINK_HardwarePowerOn();
-	printf("Error happened, %d \r\n", st);
-    printf("Powered eInk \r\n");
+	Pv_EINK_HardwarePowerOn();
 
 	/* Show the startup screen */
-//	ShowStartupScreen();
+	ShowStartupScreen();
 }
 
 /*******************************************************************************
@@ -704,21 +700,17 @@ void eInkInit(void) {
 *  None
 *
 *******************************************************************************/
-void eInkTask(void)
+void eInkTask(void*arg)
 {
     uint8_t pageNumber = 0;
 
 
     eInkInit();
 
-    ShowStartupScreen();
-//	vTaskDelay(2000);
-
 	/* Show the instructions screen */
 
 	for(;;)
 	{
-		printf("1 \r\n");
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_ON);
 		vTaskSuspend(NULL);
 
@@ -737,10 +729,10 @@ void eInkTask(void)
 
 		/* Wait for a switch press event */
 
-//		CyDelay(2000);
+		vTaskDelay(2000);
 
 		/* Cycle through demo pages */
 		pageNumber = (pageNumber+1) % NUMBER_OF_DEMO_PAGES;
-//		xSemaphoreGive(bleSemaphore);
+		curr_state = MCU_STATE_UPDATING_DISPLAY_FINISHED;
 	}
 }

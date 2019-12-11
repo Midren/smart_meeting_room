@@ -59,6 +59,39 @@ void handle_error(void)
     CY_ASSERT(0);
 }
 
+void MCWDT_init()
+{
+     /* Step 1 - Unlock WDT */
+    Cy_MCWDT_Unlock(CYBSP_MCWDT_HW);
+
+    /* Step 2 - Initial configuration of MCWDT */
+	Cy_MCWDT_Init(CYBSP_MCWDT_HW, &CYBSP_MCWDT_config);
+
+
+    /* Step 3 - Clear match event interrupt, if any */
+    Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
+
+    /* Step 4 - Enable ILO */
+    Cy_SysClk_IloEnable();
+
+    const cy_stc_sysint_t mcwdt_isr_config =
+    {
+      .intrSrc = (IRQn_Type)CYBSP_MCWDT_IRQ,
+      .intrPriority = MCWDT_INTR_PRIORITY
+    };
+
+    /* Step 5 - Enable interrupt if periodic interrupt mode selected */
+    Cy_SysInt_Init(&mcwdt_isr_config, mcwdt_interrupt_handler);
+    NVIC_EnableIRQ(mcwdt_isr_config.intrSrc);
+	Cy_MCWDT_SetInterruptMask(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
+
+    /* Step 6- Enable WDT */
+	Cy_MCWDT_Enable(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1, 93u);
+
+    /* Step 7- Lock WDT configuration */
+    Cy_MCWDT_Lock(CYBSP_MCWDT_HW);
+}
+
 /*******************************************************************************
 * Function Name: main
 ********************************************************************************
@@ -116,30 +149,7 @@ int main(void)
 
     ble_task_init();
 
-    static const cy_stc_sysint_t mcwdt_isr_config =
-    {
-      /* The MCWDT interrupt */
-      .intrSrc = (IRQn_Type)CYBSP_MCWDT_IRQ,
-
-      /* The interrupt priority number */
-      .intrPriority = MCWDT_INTR_PRIORITY
-    };
-
-    Cy_MCWDT_Unlock(CYBSP_MCWDT_HW);
-
-	Cy_MCWDT_Init(CYBSP_MCWDT_HW, &CYBSP_MCWDT_config);
-
-    Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1 | CY_MCWDT_CTR2);
-
-    /* Hook interrupt service routines for MCWDT */
-    if(Cy_SysInt_Init(&mcwdt_isr_config, mcwdt_interrupt_handler) != 0) {
-    	printf("Couldn't init mcwdt isr \r\n");
-    }
-    NVIC_EnableIRQ(mcwdt_isr_config.intrSrc);
-
-	Cy_MCWDT_Enable(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1, 93u);
-
-    Cy_MCWDT_Lock(CYBSP_MCWDT_HW);
+    MCWDT_init();
 
 	__enable_irq();
 
@@ -152,6 +162,7 @@ int main(void)
 	printf("**********************************************************\r\n");
     printf("Watchdogs enable status: %d, %d\r\n", (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
     printf("Watchdogs mode status: %d, %d\r\n", (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
+    printf("Mask status of interrupts: %d\r\n", (int) Cy_MCWDT_GetInterruptMask(CYBSP_MCWDT_HW));
 
 	curr_state = MCU_STATE_CONNECTING;
 

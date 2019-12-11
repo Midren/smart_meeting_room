@@ -335,7 +335,7 @@
                 </Block>
                 <Block location="srss[0].clock[0].lfclk[0]">
                     <Personality template="mxs40lfclk" version="1.1">
-                        <Param id="sourceClock" value="wco"/>
+                        <Param id="sourceClock" value="ilo"/>
                     </Personality>
                 </Block>
                 <Block location="srss[0].clock[0].pathmux[0]">

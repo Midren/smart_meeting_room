@@ -115,12 +115,11 @@ void readMsg() {
 void ble_task_process(void* pvParameters)
 {
 //	update_scr_task = *((TaskHandle_t*) pvParameters);
-	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
+//	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
 	for(;;) {
-//		printf("Count0: %d\r\n", (int) Cy_MCWDT_GetCount(CYBSP_MCWDT_HW, CY_MCWDT_CTR0));
-//		printf("Count1: %d\r\n", (int) Cy_MCWDT_GetCount(CYBSP_MCWDT_HW, CY_MCWDT_CTR1));
 		if(mcwdt_intr_flag) {
-			printf("Tried to print from irq\r\n");
+			printf("[INFO] IRQ happened \r\n");
+			printf("[INFO] MCU_STATE: %d\r\n", curr_state);
 			mcwdt_intr_flag = false;
 		}
 		switch(curr_state) {
@@ -132,6 +131,9 @@ void ble_task_process(void* pvParameters)
 			}
 			case MCU_STATE_CONNECTING: {
 				Cy_BLE_ProcessEvents();
+				if(Cy_BLE_GetScanState() == 0) {
+					printf("Scanning is stopped \r\n");
+				}
 				if(Cy_BLE_GetConnectionState(app_conn_handle) == CY_BLE_CONN_STATE_CLIENT_DISCOVERED) {
 					curr_state = MCU_STATE_UPDATING_INFO;
 					readMsg();
@@ -159,7 +161,7 @@ void ble_task_process(void* pvParameters)
 				break;
 			}
 		}
-		taskYIELD();
+//		taskYIELD();
 	}
 }
 
@@ -214,6 +216,12 @@ static void stack_event_handler(uint32_t event, void* eventParam)
             printf("[INFO] : Starting scan \r\n");
             Cy_BLE_GAPC_StartScan(CY_BLE_SCANNING_FAST, 0);
             break;
+        }
+
+        case CY_BLE_EVT_GAPC_SCAN_START_STOP:
+        {
+        	printf("[INFO] : GAPC Start/Stop scanning \r\n");
+        	break;
         }
 
 
@@ -281,7 +289,6 @@ static void stack_event_handler(uint32_t event, void* eventParam)
         	}
         	break;
         }
-
 
         /**********************************************************************
          * GATT events
@@ -357,15 +364,14 @@ static void stack_event_handler(uint32_t event, void* eventParam)
 *  cyhal_lptimer_irq_event_t event (unused)
 *
 *******************************************************************************/
-//void mcwdt_interrupt_handler(void)
 //void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event)
 void mcwdt_interrupt_handler(void)
 {
     /* Set the interrupt flag */
     mcwdt_intr_flag = true;
 
-    /* Reload the timer to get periodic interrupt */
-//    cyhal_lptimer_reload(&mcwdt);
+	/* Clear WDT Interrupt */
+    Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 
     if(curr_state == MCU_STATE_SHUT_DOWN_BLUETOOTH)
 		curr_state = MCU_STATE_CONNECTING;

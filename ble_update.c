@@ -56,10 +56,7 @@
 * Function Prototypes
 ********************************************************************************/
 static void ble_init(void);
-static void bless_interrupt_handler(void);
 static void stack_event_handler(uint32 event, void* eventParam);
-static void mcwdt_init(void);
-static void ble_ias_callback(uint32 event, void *eventParam);
 
 
 void findAdvInfo(uint8_t *adv, uint8_t len) {
@@ -90,13 +87,10 @@ void ble_task_init(void)
 {
 	mcwdt_intr_flag = false;
 	gpio_intr_flag = false;
-	alert_level = CY_BLE_NO_ALERT;
 
     /* Configure BLE */
     ble_init();
     
-    /* Configure MCWDT */
-//    mcwdt_init();
 }
 
 void readMsg() {
@@ -123,7 +117,8 @@ void ble_task_process(void* pvParameters)
 //	update_scr_task = *((TaskHandle_t*) pvParameters);
 	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
 	for(;;) {
-//		printf("Count: %d\r\n", (int) Cy_MCWDT_GetCountCascaded(CYBSP_MCWDT_HW));
+//		printf("Count0: %d\r\n", (int) Cy_MCWDT_GetCount(CYBSP_MCWDT_HW, CY_MCWDT_CTR0));
+//		printf("Count1: %d\r\n", (int) Cy_MCWDT_GetCount(CYBSP_MCWDT_HW, CY_MCWDT_CTR1));
 		if(mcwdt_intr_flag) {
 			printf("Tried to print from irq\r\n");
 			mcwdt_intr_flag = false;
@@ -178,21 +173,6 @@ void ble_task_process(void* pvParameters)
 *******************************************************************************/
 static void ble_init(void)
 {
-    static const cy_stc_sysint_t bless_isr_config =
-    {
-      /* The BLESS interrupt */
-      .intrSrc = bless_interrupt_IRQn,
-
-      /* The interrupt priority number */
-      .intrPriority = BLESS_INTR_PRIORITY
-    };
-
-    /* Hook interrupt service routines for BLESS */
-    (void) Cy_SysInt_Init(&bless_isr_config, bless_interrupt_handler);
-
-    /* Store the pointer to blessIsrCfg in the BLE configuration structure */
-    cy_ble_config.hw->blessIsrConfig = &bless_isr_config;
-
     /* Registers the generic callback functions  */
     Cy_BLE_RegisterEventCallback(stack_event_handler);
 
@@ -204,22 +184,6 @@ static void ble_init(void)
 
     /* Enables BLE Low-power mode (LPM)*/
     Cy_BLE_EnableLowPowerMode();
-
-    /* Register IAS event handler */
-    Cy_BLE_IAS_RegisterAttrCallback(ble_ias_callback);
-}
-
-
-/******************************************************************************
-* Function Name: bless_interrupt_handler
-*******************************************************************************
-* Summary:
-*  Wrapper function for handling interrupts from BLESS.
-*
-******************************************************************************/
-static void bless_interrupt_handler(void)
-{
-    Cy_BLE_BlessIsrHandler();
 }
 
 
@@ -328,7 +292,6 @@ static void stack_event_handler(uint32_t event, void* eventParam)
          */
         case CY_BLE_EVT_GATT_CONNECT_IND:
         {
-//            app_conn_handle = *(cy_stc_ble_conn_handle_t *)eventParam;
             printf("[INFO] : GATT device connected\r\n");
             Cy_BLE_GATTC_StartDiscovery(cy_ble_connHandle[0]);
             break;
@@ -384,56 +347,6 @@ static void stack_event_handler(uint32_t event, void* eventParam)
 
 
 /*******************************************************************************
-* Function Name: ble_ias_callback
-********************************************************************************
-* Summary:
-*  This is an event callback function to receive events from the BLE, which are
-*  specific to Immediate Alert Service.
-*
-* Parameters:
-*  uint32 event:      event from the BLE component
-*  void* eventParams: parameters related to the event
-*
-*******************************************************************************/
-void ble_ias_callback(uint32 event, void *eventParam)
-{
-    /* Alert Level Characteristic write event */
-    if(event == CY_BLE_EVT_IASS_WRITE_CHAR_CMD)
-    {
-        /* Read the updated Alert Level value from the GATT database */
-        Cy_BLE_IASS_GetCharacteristicValue(CY_BLE_IAS_ALERT_LEVEL,
-            sizeof(alert_level), &alert_level);
-        /* Update CYBSP_USER_LED2 to indicate current alert level */
-        switch(alert_level)
-        {
-            case CY_BLE_NO_ALERT:
-            {
-                cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED2, CYBSP_LED_STATE_OFF);
-                break;
-            }
-            case CY_BLE_MILD_ALERT:
-            {
-                cyhal_gpio_toggle((cyhal_gpio_t)CYBSP_USER_LED2);
-                break;
-            }
-            case CY_BLE_HIGH_ALERT:
-            {
-                cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED2, CYBSP_LED_STATE_ON);
-                break;
-            }
-            default:
-            {
-                break;
-            }
-        }
-    }
-
-    /* Remove warning for unused parameter */
-    (void)eventParam;
-}
-
-
-/*******************************************************************************
 * Function Name: mcwdt_interrupt_handler
 ********************************************************************************
 * Summary:
@@ -460,24 +373,6 @@ void mcwdt_interrupt_handler(void)
 
 
 /*******************************************************************************
-* Function Name: mcwdt_init
-********************************************************************************
-* Summary:
-*  Initialize MCWDT for generating interrupt.
-*
-*******************************************************************************/
-static void mcwdt_init(void)
-{
-    cyhal_lptimer_init(&mcwdt);
-    cyhal_lptimer_set_time(&mcwdt, MCWDT_MATCH_VALUE);
-    cyhal_lptimer_reload(&mcwdt);
-    cyhal_lptimer_register_callback(&mcwdt, mcwdt_interrupt_handler, NULL);
-    cyhal_lptimer_enable_event(&mcwdt, CYHAL_LPTIMER_COMPARE_MATCH,
-                               MCWDT_INTR_PRIORITY, true);
-}
-
-
-/*******************************************************************************
 * Function Name: enter_low_power_mode
 ********************************************************************************
 * Summary:
@@ -493,25 +388,12 @@ static void mcwdt_init(void)
 void enter_low_power_mode(void)
 {
     /* Enter hibernate mode if BLE is turned off  */
-//    if(CY_BLE_STATE_STOPPED == Cy_BLE_GetState())
-//    {
-        printf("[INFO] : Entering deep sleep mode\r\n");
-//
-        /* Turn of user LEDs */
-        cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
-        cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
+	printf("[INFO] : Entering deep sleep mode\r\n");
 
-//        /* Wait until UART transfer complete  */
-//        while(0UL == Cy_SCB_UART_IsTxComplete(cy_retarget_io_uart_obj.base));
+	cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
+	cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
 
-//        if(Cy_SysPm_Hibernate() != CY_SYSPM_SUCCESS) {
-//        	printf("[ERROR] Couldn't enter hibernate");
-//        }
-//    }
-//    else
-//    {
-        Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
-//    }
+	Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
 }
 
 

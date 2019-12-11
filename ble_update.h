@@ -53,10 +53,7 @@ uint8_t data[4096];
 /*******************************************************************************
 * Macros
 ********************************************************************************/
-#define BLESS_INTR_PRIORITY     (1u)
 #define MCWDT_INTR_PRIORITY     (7u)
-//#define MCWDT_MATCH_VALUE       (1522000UL) /* for 0.25 sec with MCWDT clock 32768 Hz */
-#define MCWDT_MATCH_VALUE       (0xff0ffff0UL) /* for 0.25 sec with MCWDT clock 32768 Hz */
 
 /******************************************************************************
  * Function prototypes
@@ -64,7 +61,6 @@ uint8_t data[4096];
 void ble_task_init(void);
 void ble_task_process(void*);
 void enter_low_power_mode(void);
-//void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event);
 void mcwdt_interrupt_handler(void);
 
 typedef struct {
@@ -87,10 +83,8 @@ typedef enum {
 advInfo_t currentAdvInfo;
 mcu_state_t curr_state;
 
-cyhal_lptimer_t mcwdt;
 bool mcwdt_intr_flag;
 bool gpio_intr_flag;
-uint8 alert_level;
 cy_stc_ble_conn_handle_t app_conn_handle;
 
 #endif  /* BLE_FIND_ME_H */

@@ -53,6 +53,7 @@ uint8_t data[4096];
 /*******************************************************************************
 * Macros
 ********************************************************************************/
+#define BLESS_INTR_PRIORITY		(3u)
 #define MCWDT_INTR_PRIORITY     (7u)
 
 /******************************************************************************
@@ -73,6 +74,7 @@ typedef struct {
 typedef enum {
 	MCU_STATE_DEEP_SLEEP,
 	MCU_STATE_SHUT_DOWN_BLUETOOTH,
+	MCU_STATE_STARTING,
 	MCU_STATE_CONNECTING,
 	MCU_STATE_UPDATING_INFO,
 	MCU_STATE_UPDATING_DISPLAY,

@@ -401,7 +401,7 @@
                     <Alias value="CYBSP_MCWDT"/>
                     <Personality template="mxs40mcwdt" version="1.0">
                         <Param id="C0ClearOnMatch" value="CLEAR_ON_MATCH"/>
-                        <Param id="C0Match" value="4"/>
+                        <Param id="C0Match" value="16"/>
                         <Param id="C0Mode" value="CY_MCWDT_MODE_NONE"/>
                         <Param id="C1ClearOnMatch" value="CLEAR_ON_MATCH"/>
                         <Param id="C1Match" value="32725"/>

@@ -124,16 +124,17 @@ void ble_task_process(void* pvParameters)
 		}
 		switch(curr_state) {
 			case MCU_STATE_DEEP_SLEEP: {
-				printf("Entering low power mode \r\n");
 				Cy_BLE_Disable();
 				curr_state = MCU_STATE_SHUT_DOWN_BLUETOOTH;
 				break;
 			}
+			case MCU_STATE_STARTING: {
+				Cy_BLE_Enable();
+				curr_state = MCU_STATE_CONNECTING;
+				break;
+			}
 			case MCU_STATE_CONNECTING: {
 				Cy_BLE_ProcessEvents();
-				if(Cy_BLE_GetScanState() == 0) {
-					printf("Scanning is stopped \r\n");
-				}
 				if(Cy_BLE_GetConnectionState(app_conn_handle) == CY_BLE_CONN_STATE_CLIENT_DISCOVERED) {
 					curr_state = MCU_STATE_UPDATING_INFO;
 					readMsg();
@@ -165,6 +166,17 @@ void ble_task_process(void* pvParameters)
 	}
 }
 
+/******************************************************************************
+* Function Name: bless_interrupt_handler
+*******************************************************************************
+* Summary:
+*  Wrapper function for handling interrupts from BLESS.
+*
+******************************************************************************/
+static void bless_interrupt_handler(void)
+{
+    Cy_BLE_BlessIsrHandler();
+}
 
 /*******************************************************************************
 * Function Name: ble_init
@@ -175,6 +187,21 @@ void ble_task_process(void* pvParameters)
 *******************************************************************************/
 static void ble_init(void)
 {
+	static const cy_stc_sysint_t bless_isr_config =
+	{
+	  /* The BLESS interrupt */
+	  .intrSrc = bless_interrupt_IRQn,
+
+	  /* The interrupt priority number */
+	  .intrPriority = BLESS_INTR_PRIORITY
+	};
+
+	/* Hook interrupt service routines for BLESS */
+	(void) Cy_SysInt_Init(&bless_isr_config, bless_interrupt_handler);
+
+	/* Store the pointer to blessIsrCfg in the BLE configuration structure */
+	cy_ble_config.hw->blessIsrConfig = &bless_isr_config;
+
     /* Registers the generic callback functions  */
     Cy_BLE_RegisterEventCallback(stack_event_handler);
 
@@ -262,11 +289,11 @@ static void stack_event_handler(uint32_t event, void* eventParam)
         case CY_BLE_EVT_GAPC_SCAN_PROGRESS_RESULT: {
         	printf("Device ");
         	cy_stc_ble_gapc_adv_report_param_t *scanProgressParam = (cy_stc_ble_gapc_adv_report_param_t *) eventParam;
-        	printf("BD Address = ");
+        	printf("[INFO] : BD Address = ");
         	for(unsigned int i = 0; i < CY_BLE_BD_ADDR_SIZE; i++) {
         		printf("%02X", scanProgressParam->peerBdAddr[i]);
         	}
-        	printf(" Length = %d ", scanProgressParam->dataLen);
+        	printf("[INFO] : Length = %d ", scanProgressParam->dataLen);
         	findAdvInfo(scanProgressParam->data, scanProgressParam->dataLen);
         	if(currentAdvInfo.name_len != 0) {
         		printf("%.*s",currentAdvInfo.name_len, currentAdvInfo.name);
@@ -279,7 +306,7 @@ static void stack_event_handler(uint32_t event, void* eventParam)
 
 				if(!strcmp(currentAdvInfo.name, "BLE UART Target"))
 				{
-					printf("Found LineData Service \r\n");
+					printf("[INFO] : Found LineData Service \r\n");
 					cy_stc_ble_bd_addr_t connectAddr;
 					memcpy(&connectAddr.bdAddr[0], &scanProgressParam->peerBdAddr[0], CY_BLE_BD_ADDR_SIZE);
 					connectAddr.type = scanProgressParam->peerAddrType;
@@ -373,8 +400,9 @@ void mcwdt_interrupt_handler(void)
 	/* Clear WDT Interrupt */
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 
-    if(curr_state == MCU_STATE_SHUT_DOWN_BLUETOOTH)
-		curr_state = MCU_STATE_CONNECTING;
+    if(curr_state == MCU_STATE_SHUT_DOWN_BLUETOOTH) {
+		curr_state = MCU_STATE_STARTING;
+    }
 }
 
 

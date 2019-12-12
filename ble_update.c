@@ -287,13 +287,12 @@ static void stack_event_handler(uint32_t event, void* eventParam)
          *********************************************************************/
 
         case CY_BLE_EVT_GAPC_SCAN_PROGRESS_RESULT: {
-        	printf("Device ");
         	cy_stc_ble_gapc_adv_report_param_t *scanProgressParam = (cy_stc_ble_gapc_adv_report_param_t *) eventParam;
-        	printf("[INFO] : BD Address = ");
+        	printf("[INFO] Device: BD Address = ");
         	for(unsigned int i = 0; i < CY_BLE_BD_ADDR_SIZE; i++) {
         		printf("%02X", scanProgressParam->peerBdAddr[i]);
         	}
-        	printf("[INFO] : Length = %d ", scanProgressParam->dataLen);
+        	printf(" Length = %d ", scanProgressParam->dataLen);
         	findAdvInfo(scanProgressParam->data, scanProgressParam->dataLen);
         	if(currentAdvInfo.name_len != 0) {
         		printf("%.*s",currentAdvInfo.name_len, currentAdvInfo.name);
@@ -427,7 +426,15 @@ void enter_low_power_mode(void)
 	cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_OFF);
 	cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
 
+
+#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
 	Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
+#endif
+#if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
+        /* Wait until UART transfer complete  */
+        while(0UL == Cy_SCB_UART_IsTxComplete(cy_retarget_io_uart_obj.base));
+        Cy_SysPm_Hibernate();
+#endif
 }
 
 

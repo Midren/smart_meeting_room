@@ -56,6 +56,11 @@ uint8_t data[4096];
 #define BLESS_INTR_PRIORITY		(3u)
 #define MCWDT_INTR_PRIORITY     (7u)
 
+#define LOW_POWER_HIBERNATE 1
+#define LOW_POWER_DEEP_SLEEP 2
+
+#define LOW_POWER_MODE LOW_POWER_HIBERNATE
+
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/

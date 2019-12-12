@@ -67,13 +67,13 @@ void MCWDT_init()
     /* Step 2 - Initial configuration of MCWDT */
 	Cy_MCWDT_Init(CYBSP_MCWDT_HW, &CYBSP_MCWDT_config);
 
-
     /* Step 3 - Clear match event interrupt, if any */
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 
     /* Step 4 - Enable ILO */
     Cy_SysClk_IloEnable();
 
+#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
     const cy_stc_sysint_t mcwdt_isr_config =
     {
       .intrSrc = (IRQn_Type)CYBSP_MCWDT_IRQ,
@@ -84,7 +84,7 @@ void MCWDT_init()
     Cy_SysInt_Init(&mcwdt_isr_config, mcwdt_interrupt_handler);
     NVIC_EnableIRQ(mcwdt_isr_config.intrSrc);
 	Cy_MCWDT_SetInterruptMask(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
-
+#endif
     /* Step 6- Enable WDT */
 	Cy_MCWDT_Enable(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1, 93u);
 
@@ -111,6 +111,7 @@ int main(void)
 {
     cy_rslt_t result;
 
+#if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
     /* Configure switch SW2 as hibernate wake up source */
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBPIN1_LOW);
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBWDT);
@@ -120,6 +121,7 @@ int main(void)
     {
         Cy_SysPm_IoUnfreeze();
     }
+#endif
 
     /* Initialize the device and board peripherals */
     result = cybsp_init();
@@ -160,9 +162,15 @@ int main(void)
 	printf("**********************************************************\r\n");
 	printf("PSoC 6 MCU emWin E-Ink\r\n");
 	printf("**********************************************************\r\n");
-    printf("Watchdogs enable status: %d, %d\r\n", (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
-    printf("Watchdogs mode status: %d, %d\r\n", (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
-    printf("Mask status of interrupts: %d\r\n", (int) Cy_MCWDT_GetInterruptMask(CYBSP_MCWDT_HW));
+//    printf("[INFO] : Watchdogs enable status: %d, %d\r\n", (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
+//    printf("[INFO] : Watchdogs mode status: %d, %d\r\n", (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
+//    printf("[INFO] : Mask status of interrupts: %d\r\n", (int) Cy_MCWDT_GetInterruptMask(CYBSP_MCWDT_HW));
+    if(CY_SYSLIB_RESET_SWWDT0 == Cy_SysLib_GetResetReason())
+    {
+    	printf("[INFO] : Oh my God! We have returned from nowhere using MCWDT \r\n");
+    }
+
+    Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 
 	curr_state = MCU_STATE_CONNECTING;
 

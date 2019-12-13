@@ -1,65 +1,23 @@
-/******************************************************************************
-* File Name: ble_findme.c
-*
-* Description: This file contains BLE related functions.
-*
-* Related Document: README.md
-*
-*******************************************************************************
-* Copyright (2019), Cypress Semiconductor Corporation. All rights reserved.
-*******************************************************************************
-* This software, including source code, documentation and related materials
-* ("Software"), is owned by Cypress Semiconductor Corporation or one of its
-* subsidiaries ("Cypress") and is protected by and subject to worldwide patent
-* protection (United States and foreign), United States copyright laws and
-* international treaty provisions. Therefore, you may use this Software only
-* as provided in the license agreement accompanying the software package from
-* which you obtained this Software ("EULA").
-*
-* If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
-* non-transferable license to copy, modify, and compile the Software source
-* code solely for use in connection with Cyptemperature sensor we discussed about wants to keep track of all devices that have connected to it in its lifetime (let’s ignore for a moment potential security issues). In that case, the Central should contain a GATT database itself. There, inside the GAP Serviceress's integrated circuit products.
-* Any reproduction, modification, translation, compilation, or representation
-* of this Software except as specified above is prohibited without the express
-* written permission of Cypress.
-*
-* Disclaimer: THIS SOFTWARE IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, NONINFRINGEMENT, IMPLIED
-* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. Cypress
-* reserves the right to make changes to the Software without notice. Cypress
-* does not assume any liability arising out of the application or use of the
-* Software or any product or circuit described in the Software. Cypress does
-* not authorize its products for use in any products where a malfunction or
-* failure of the Cypress product may reasonably be expected to result in
-* significant property damage, injury or death ("High Risk Product"). By
-* including Cypress's product in a High Risk Product, the manufacturer of such
-* system or application assumes all risk of such use and in doing so agrees to
-* indemnify Cypress against all liability.
-*******************************************************************************/
+#include "main_fsm.h"
 
-
-/******************************************************************************
- * Include header files
- *****************************************************************************/
-#include "ble_update.h"
 #include "cy_retarget_io.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "einkTask.h"
 
-/*******************************************************************************
-* Global Variables
-********************************************************************************/
+#include "eink_task.h"
+#include "cfg.h"
 
 
-/*******************************************************************************
-* Function Prototypes
-********************************************************************************/
-static void ble_init(void);
-static void stack_event_handler(uint32 event, void* eventParam);
+typedef struct {
+	char* name;
+	int name_len;
+	uint8_t *serviceUUID;
+	uint8_t servUUID_len;
+} advInfo_t;
 
+advInfo_t currentAdvInfo;
 
-void findAdvInfo(uint8_t *adv, uint8_t len) {
+static void findAdvInfo(uint8_t *adv, uint8_t len) {
 	memset(&currentAdvInfo, 0, sizeof(currentAdvInfo));
 
 	for(uint8_t i=0; i<len;) {
@@ -76,22 +34,6 @@ void findAdvInfo(uint8_t *adv, uint8_t len) {
 		i = i + adv[i]+1;
 	}
 }
-/*******************************************************************************
-* Function Name: ble_findme_init
-********************************************************************************
-* Summary:
-* This function initializes the BLE and MCWDT.
-*
-*******************************************************************************/
-void ble_task_init(void)
-{
-	mcwdt_intr_flag = false;
-	gpio_intr_flag = false;
-
-    /* Configure BLE */
-    ble_init();
-    
-}
 
 void readMsg() {
 	cy_stc_ble_gattc_read_req_t myVal = {
@@ -104,16 +46,7 @@ void readMsg() {
 	}
 }
 
-/*******************************************************************************
-* Function Name: ble_findme_process
-********************************************************************************
-* Summary:
-*  This function processes the BLE events and configures the device to enter
-*  low power mode as required.
-*
-*******************************************************************************/
-void ble_task_process(void* pvParameters)
-{
+void main_fsm(void* pvParameters) {
 //	update_scr_task = *((TaskHandle_t*) pvParameters);
 //	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
 	for(;;) {
@@ -166,55 +99,6 @@ void ble_task_process(void* pvParameters)
 	}
 }
 
-/******************************************************************************
-* Function Name: bless_interrupt_handler
-*******************************************************************************
-* Summary:
-*  Wrapper function for handling interrupts from BLESS.
-*
-******************************************************************************/
-static void bless_interrupt_handler(void)
-{
-    Cy_BLE_BlessIsrHandler();
-}
-
-/*******************************************************************************
-* Function Name: ble_init
-********************************************************************************
-* Summary:
-*  This function initializes the BLE and registers IAS callback function.
-*
-*******************************************************************************/
-static void ble_init(void)
-{
-	static const cy_stc_sysint_t bless_isr_config =
-	{
-	  /* The BLESS interrupt */
-	  .intrSrc = bless_interrupt_IRQn,
-
-	  /* The interrupt priority number */
-	  .intrPriority = BLESS_INTR_PRIORITY
-	};
-
-	/* Hook interrupt service routines for BLESS */
-	(void) Cy_SysInt_Init(&bless_isr_config, bless_interrupt_handler);
-
-	/* Store the pointer to blessIsrCfg in the BLE configuration structure */
-	cy_ble_config.hw->blessIsrConfig = &bless_isr_config;
-
-    /* Registers the generic callback functions  */
-    Cy_BLE_RegisterEventCallback(stack_event_handler);
-
-    /* Initializes the BLE host */
-    Cy_BLE_Init(&cy_ble_config);
-
-    /* Enables BLE */
-    Cy_BLE_Enable();
-
-    /* Enables BLE Low-power mode (LPM)*/
-    Cy_BLE_EnableLowPowerMode();
-}
-
 
 /*******************************************************************************
 * Function Name: stack_event_handler
@@ -228,8 +112,7 @@ static void ble_init(void)
 *  void* eventParam:  parameters related to the event
 *
 *******************************************************************************/
-static void stack_event_handler(uint32_t event, void* eventParam)
-{
+void stack_event_handler(uint32_t event, void* eventParam) {
     switch(event)
     {
         /**********************************************************************
@@ -378,19 +261,6 @@ static void stack_event_handler(uint32_t event, void* eventParam)
 
 }
 
-
-/*******************************************************************************
-* Function Name: mcwdt_interrupt_handler
-********************************************************************************
-* Summary:
-*  MCWDT interrupt handler.
-*
-* Parameters:
-*  void *handler_arg (unused)
-*  cyhal_lptimer_irq_event_t event (unused)
-*
-*******************************************************************************/
-//void mcwdt_interrupt_handler(void *handler_arg, cyhal_lptimer_event_t event)
 void mcwdt_interrupt_handler(void)
 {
     /* Set the interrupt flag */
@@ -405,21 +275,7 @@ void mcwdt_interrupt_handler(void)
 }
 
 
-/*******************************************************************************
-* Function Name: enter_low_power_mode
-********************************************************************************
-* Summary:
-*  Configures the device to enter low power mode.
-*
-*  The function configures the device to enter deep sleep - whenever the
-*  BLE is idle and the UART transmission/reception is not happening.
-*
-*  In case if BLE is  turned off, the function configures the device to
-*  enter hibernate mode.
-*
-*******************************************************************************/
-void enter_low_power_mode(void)
-{
+void enter_low_power_mode(void) {
     /* Enter hibernate mode if BLE is turned off  */
 	printf("[INFO] : Entering deep sleep mode\r\n");
 

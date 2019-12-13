@@ -33,8 +33,8 @@
 * indemnify Cypress against all liability.
 ********************************************************************************/
 
-#ifndef EINKTASK_H_
-#define EINKTASK_H_
+#ifndef EINK_TASK_H_
+#define EINK_TASK_H_
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
@@ -47,4 +47,4 @@ void eInkTask(void*);
 
 void eInkInit(void);
 
-#endif /* EINKTASK_H_ */
+#endif /* EINK_TASK_H_ */

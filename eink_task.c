@@ -47,16 +47,19 @@
 *	6. A screen showing a text box with wrapped text
 *
  *******************************************************************************/
+#include "eink_task.h"
+
 #include "cyhal.h"
 #include "cybsp.h"
 #include "GUI.h"
 #include "pervasive_eink_hardware_driver.h"
 #include "cy_eink_library.h"
 #include "LCDConf.h"
-#include "einkTask.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "ble_update.h"
+
+#include "main_fsm.h"
+#include "cfg.h"
 
 /* External global references */
 extern GUI_CONST_STORAGE GUI_BITMAP bmCypressLogoFullColor_PNG_1bpp;
@@ -665,7 +668,7 @@ void WaitforSwitchPressAndRelease(void)
 }
 
 
-void eInkInit(void) {
+void e_ink_init(void) {
     /* Configure Switch and LEDs*/
     cyhal_gpio_init((cyhal_gpio_t)CYBSP_LED_RGB_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
     cyhal_gpio_init((cyhal_gpio_t)CYBSP_SW2, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_PULLUP, CYBSP_BTN_OFF);
@@ -705,7 +708,7 @@ void eInkTask(void*arg)
     uint8_t pageNumber = 0;
 
 
-    eInkInit();
+    e_ink_init();
 
 	/* Show the instructions screen */
 

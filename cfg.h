@@ -9,6 +9,7 @@
 #include "task.h"
 
 #include "main_fsm.h"
+#include "flash_counter.h"
 
 typedef enum {
 	MCU_STATE_DEEP_SLEEP,

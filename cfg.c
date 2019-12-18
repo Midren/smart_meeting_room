@@ -74,6 +74,5 @@ int init_peripherial() {
 
 	ble_init();
     mcwdt_init();
-
 	return 0;
 }

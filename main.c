@@ -10,9 +10,11 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "cfg.h"
 #include "eink_task.h"
 #include "main_fsm.h"
-#include "cfg.h"
+#include "flash_counter.h"
+
 
 void handle_error(void)
 {
@@ -91,13 +93,27 @@ int main(void)
 	printf("**********************************************************\r\n");
 	printf("PSoC 6 MCU emWin E-Ink\r\n");
 	printf("**********************************************************\r\n");
-//    printf("[INFO] : Watchdogs enable status: %d, %d\r\n", (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetEnabledStatus(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
-//    printf("[INFO] : Watchdogs mode status: %d, %d\r\n", (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER0), (int) Cy_MCWDT_GetMode(CYBSP_MCWDT_HW, CY_MCWDT_COUNTER1));
-//    printf("[INFO] : Mask status of interrupts: %d\r\n", (int) Cy_MCWDT_GetInterruptMask(CYBSP_MCWDT_HW));
+
+    flash_counter_init();
+
+
     if(CY_SYSLIB_RESET_SWWDT0 == Cy_SysLib_GetResetReason())
     {
-    	printf("[INFO] : Oh my God! We have returned from nowhere using MCWDT \r\n");
+    	printf("[INFO] : Returned from deep sleep using MCWDT \r\n");
     }
+
+    size_t counter = get_flash_counter_value();
+    printf("[INFO] Counter value: %d \r\n", counter);
+
+    set_flash_counter_value(23u);
+
+    counter = get_flash_counter_value();
+    printf("[INFO] Counter value: %d \r\n", counter);
+
+    set_flash_counter_value(24u);
+
+    counter = get_flash_counter_value();
+    printf("[INFO] Counter value: %d \r\n", counter);
 
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 

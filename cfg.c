@@ -87,15 +87,6 @@ void mcwdt_init()
     /* Step 5- Enable ILO */
     Cy_SysClk_IloEnable();
 
-//	const cy_stc_sysint_t WDT_IRQ_cfg = {
-//		.intrSrc = (IRQn_Type)WDT_IRQ__INTC_NUMBER,
-//		.intrPriority = WDT_IRQ__INTC_CORTEXM4_PRIORITY
-//	};
-//
-//	Cy_SysInt_Init(&WDT_IRQ_cfg, mcwdt_interrupt_handler);
-//	NVIC_EnableIRQ(WDT_IRQ_cfg.intrSrc);
-//	Cy_WDT_UnmaskInterrupt();
-
     /* Step 7- Enable WDT */
     Cy_WDT_Enable();
 
@@ -110,5 +101,8 @@ int init_peripherial() {
 
 	ble_init();
     mcwdt_init();
+
+
+
 	return 0;
 }

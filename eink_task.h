@@ -35,15 +35,18 @@
 
 #ifndef EINK_TASK_H_
 #define EINK_TASK_H_
+#include <time.h>
+
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
 
 typedef struct {
-	uint8_t owner_name[256];
+	char owner_name[256];
 	uint8_t owner_name_len;
-	uint64_t start_time;
-	uint64_t end_time;
+	time_t start_time;
+	time_t end_time;
+	bool occupation_status;
 } BookingInfo;
 
 BookingInfo booking_info;

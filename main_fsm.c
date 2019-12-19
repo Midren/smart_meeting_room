@@ -36,10 +36,6 @@ static void findAdvInfo(uint8_t *adv, uint8_t len) {
 }
 
 void readMsg(uint16_t characteristic_char_index) {
-//	cy_stc_ble_gattc_read_req_t myVal = {
-//		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_LINEDATA_SERVICE_INDEX].customServChar[CY_BLE_CUSTOMC_LINEDATA_DATA_CHAR_INDEX].customServCharHandle[0],
-//		.connHandle = cy_ble_connHandle[0]
-//	};
 	cy_stc_ble_gattc_read_req_t myVal = {
 		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_BOOKING_INFO_SERVICE_INDEX].customServChar[characteristic_char_index].customServCharHandle[0],
 		.connHandle = cy_ble_connHandle[0]
@@ -51,8 +47,6 @@ void readMsg(uint16_t characteristic_char_index) {
 }
 
 void main_fsm(void* pvParameters) {
-//	update_scr_task = *((TaskHandle_t*) pvParameters);
-//	printf("Task state: %d\r\n", eTaskGetState(update_scr_task));
 	for(;;) {
 		if(mcwdt_intr_flag) {
 			printf("[INFO] IRQ happened \r\n");
@@ -98,6 +92,11 @@ void main_fsm(void* pvParameters) {
 						curr_state = MCU_STATE_UPDATING_INFO_PROCESSING;
 						break;
 					}
+					case UPDATING_INFO_OCCUPATION_STATUS: {
+						readMsg(CY_BLE_CUSTOMC_BOOKING_INFO_OCCUPATIONSTATUS_CHAR_INDEX);
+						curr_state = MCU_STATE_UPDATING_INFO_PROCESSING;
+						break;
+					}
 					case UPDATING_INFO_FINISHED: {
 						printf("[DEBUG] : Start time: %lu\r\n", (uint32_t) booking_info.start_time);
 						printf("[DEBUG] : End   time: %lu\r\n", (uint32_t) booking_info.end_time);
@@ -106,6 +105,7 @@ void main_fsm(void* pvParameters) {
 							printf("%c", booking_info.owner_name[i]);
 						}
 						printf("\r\n");
+						printf("[DEBUG] : Occupation status: %d\r\n", booking_info.occupation_status);
 						curr_state = MCU_STATE_UPDATING_DISPLAY;
 						break;
 					}
@@ -285,6 +285,7 @@ void stack_event_handler(uint32_t event, void* eventParam) {
 				.owner_name_len = 0,
 				.start_time = 0lu,
 				.end_time = 0lu,
+				.occupation_status = 1
 			};
 
         	printf("[INFO] : GATTC read response\r\n");
@@ -301,12 +302,18 @@ void stack_event_handler(uint32_t event, void* eventParam) {
         		curr_state = MCU_STATE_UPDATING_INFO;
         		break;
         	case UPDATING_INFO_OWNER_NAME:
-				memcpy(&info.owner_name, readRspParam->value.val, readRspParam->value.len);
+				memcpy((uint8_t*)&info.owner_name, readRspParam->value.val, readRspParam->value.len);
 				info.owner_name_len = readRspParam->value.len;
+				info.owner_name[info.owner_name_len] = '\0';
+        		curr_upd_state = UPDATING_INFO_OCCUPATION_STATUS;
+        		curr_state = MCU_STATE_UPDATING_INFO;
+        		break;
+        	case UPDATING_INFO_OCCUPATION_STATUS:
+				memcpy((uint8_t*)&info.occupation_status, readRspParam->value.val, readRspParam->value.len);
         		curr_upd_state = UPDATING_INFO_FINISHED;
 				curr_state = MCU_STATE_UPDATING_INFO;
 				booking_info = info;
-        		break;
+				break;
         	case UPDATING_INFO_FINISHED:
         		printf("Redundant read req was made \r\n");
         		break;

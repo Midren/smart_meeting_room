@@ -1,52 +1,3 @@
-/******************************************************************************
-* File Name: eInkTask.c
-*
-*******************************************************************************
-* Copyright (2019), Cypress Semiconductor Corporation. All rights reserved.
-*******************************************************************************
-* This software, including source code, documentation and related materials
-* (“Software”), is owned by Cypress Semiconductor Corporation or one of its
-* subsidiaries (“Cypress”) and is protected by and subject to worldwide patent
-* protection (United States and foreign), United States copyright laws and
-* international treaty provisions. Therefore, you may use this Software only
-* as provided in the license agreement accompanying the software package from
-* which you obtained this Software (“EULA”).
-*
-* If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
-* non-transferable license to copy, modify, and compile the Software source
-* code solely for use in connection with Cypress’s integrated circuit products.
-* Any reproduction, modification, translation, compilation, or representation
-* of this Software except as specified above is prohibited without the express
-* written permission of Cypress.
-*
-* Disclaimer: THIS SOFTWARE IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, NONINFRINGEMENT, IMPLIED
-* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. Cypress
-* reserves the right to make changes to the Software without notice. Cypress
-* does not assume any liability arising out of the application or use of the
-* Software or any product or circuit described in the Software. Cypress does
-* not authorize its products for use in any products where a malfunction or
-* failure of the Cypress product may reasonably be expected to result in
-* significant property damage, injury or death (“High Risk Product”). By
-* including Cypress’s product in a High Risk Product, the manufacturer of such
-* system or application assumes all risk of such use and in doing so agrees to
-* indemnify Cypress against all liability.
-********************************************************************************/
-/******************************************************************************
-* This file contains the code of E-Ink that demonstrates controlling a EInk
-* display using the EmWin Graphics Library. The project displays a start up
-* screen with Cypress logo and text "CYPRESS EMWIN GRAPHICS DEMO EINK DISPLAY".
-* The project then displays the following screens in a loop
-*
-*	1. A screen showing various text alignments, styles and modes
-*   2. A screen showing normal fonts
-*	3. A screen showing bold fonts
-*	4. A screen showing 2D graphics with horizontal lines, vertical lines
-*		arcs and filled rounded rectangle
-*	5. A screen showing 2D graphics with concentric circles and ellipses
-*	6. A screen showing a text box with wrapped text
-*
- *******************************************************************************/
 #include "eink_task.h"
 
 #include "cyhal.h"
@@ -617,6 +568,53 @@ void Show2DGraphics2(void)
     UpdateDisplay(CY_EINK_FULL_4STAGE, true);
 }
 
+void show_booking_info(BookingInfo info) {
+    /* Set font size, foreground and background colors */
+    GUI_SetColor(GUI_BLACK);
+    GUI_SetBkColor(GUI_WHITE);
+    GUI_SetTextMode(GUI_TM_NORMAL);
+    GUI_SetTextStyle(GUI_TS_NORMAL);
+
+    /* Clear the screen */
+    GUI_Clear();
+
+    /* Display page title */
+    GUI_SetFont(GUI_FONT_20B_1);
+    GUI_SetTextAlign(GUI_TA_HCENTER);
+
+    GUI_DispStringAt("Room booking status", 132, 5);
+
+	static char occupation_duration_line[24] = "Duration: ";
+
+    struct tm *timeinfo = localtime(&info.start_time);
+    sprintf(occupation_duration_line + 10,
+    		"%02d:%02d - ",
+			timeinfo->tm_hour, timeinfo->tm_min);
+
+    timeinfo = localtime(&info.end_time);
+    sprintf(occupation_duration_line + 18,
+    		"%02d:%02d",
+			timeinfo->tm_hour, timeinfo->tm_min);
+
+    occupation_duration_line[35] = '\0';
+
+    /* Font16B_1*/
+    GUI_SetFont(GUI_FONT_16B_1);
+    GUI_DispStringAt(occupation_duration_line, 5, 53);
+
+    GUI_DispStringAt("Booked by: ", 5, 73);
+    GUI_DispStringAt(info.owner_name, 5 + GUI_GetStringDistX("Booked by: "), 73);
+
+    if(info.occupation_status) {
+		GUI_DispStringAt("Status: Occupied", 5, 93);
+    } else {
+		GUI_DispStringAt("Status: Free", 5, 93);
+    }
+
+    /* Send the display buffer data to display*/
+    UpdateDisplay(CY_EINK_FULL_4STAGE, true);
+}
+
 
 void ClearScreen(void)
 {
@@ -630,8 +628,8 @@ void ClearScreen(void)
 void e_ink_init(void) {
 	bleSemaphore = xSemaphoreCreateCounting(1000, 0);
     /* Configure Switch and LEDs*/
-    cyhal_gpio_init((cyhal_gpio_t)CYBSP_LED_RGB_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-    cyhal_gpio_init((cyhal_gpio_t)CYBSP_SW2, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_PULLUP, CYBSP_BTN_OFF);
+//    cyhal_gpio_init((cyhal_gpio_t)CYBSP_LED_RGB_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+//    cyhal_gpio_init((cyhal_gpio_t)CYBSP_SW2, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_PULLUP, CYBSP_BTN_OFF);
     cyhal_gpio_init((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
     /* Initialize EmWin driver*/
@@ -641,39 +639,21 @@ void e_ink_init(void) {
 	Cy_EINK_Start(20);
 	Pv_EINK_HardwarePowerOn();
 
-	/* Show the startup screen */
-	ShowStartupScreen();
 }
 
 void eInkTask(void*arg)
 {
-    uint8_t pageNumber = 0;
-
-
     e_ink_init();
-
-	/* Show the instructions screen */
 
 	for(;;)
 	{
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_ON);
 		xSemaphoreTake(bleSemaphore, portMAX_DELAY);
 
-		/* Using pageNumber as index, update the display with a demo screen
-			Following are the functions that are called in sequence
-				ShowFontSizesNormal()
-				ShowFontSizesBold()
-				ShowTextModes()
-				ShowTextWrapAndOrientation()
-				Show2DGraphics1()
-				Show2DGraphics2()
-		*/
-		(*demoPageArray[pageNumber])();
+		show_booking_info(booking_info);
 
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
 
-		/* Cycle through demo pages */
-		pageNumber = (pageNumber+1) % NUMBER_OF_DEMO_PAGES;
 		curr_state = MCU_STATE_UPDATING_DISPLAY_FINISHED;
 	}
 }

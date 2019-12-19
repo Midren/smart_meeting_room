@@ -46,7 +46,6 @@ int main(void)
 
 #if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
     /* Configure switch SW2 as hibernate wake up source */
-//    Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBPIN1_LOW);
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBWDT);
 
     /* Unfreeze IO if device is waking up from hibernate */
@@ -84,7 +83,7 @@ int main(void)
 
     init_peripherial();
 
-	__enable_irq();
+    __enable_irq();
 
     /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
     printf("\x1b[2J\x1b[;H");
@@ -117,7 +116,7 @@ int main(void)
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
 #endif
 #if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
-	Cy_WDT_ClearWatchdog();
+    Cy_WDT_ClearWatchdog();
 #endif
 	curr_state = MCU_STATE_CONNECTING;
 	curr_upd_state = UPDATING_INFO_FINISHED;

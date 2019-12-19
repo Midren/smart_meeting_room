@@ -25,27 +25,12 @@ void handle_error(void)
 }
 
 
-/*******************************************************************************
-* Function Name: main
-********************************************************************************
-* Summary:
-* This is the main function for CM4 CPU.
-* 	1) Create task for E-Ink
-* 	2) Schedule the task
-*
-* Parameters:
-*  void
-*
-* Return:
-*  int
-*
-*******************************************************************************/
 int main(void)
 {
     cy_rslt_t result;
 
 #if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
-    /* Configure switch SW2 as hibernate wake up source */
+    /* Configure switch WDT as hibernate wake up source */
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBWDT);
 
     /* Unfreeze IO if device is waking up from hibernate */
@@ -74,13 +59,6 @@ int main(void)
         CY_ASSERT(0);
     }
 
-
-    /* Initialize the User LEDs */
-    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED1, CYHAL_GPIO_DIR_OUTPUT,
-                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED2, CYHAL_GPIO_DIR_OUTPUT,
-                              CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-
     init_peripherial();
 
     __enable_irq();
@@ -102,7 +80,7 @@ int main(void)
 		increment_flash_counter();
 		uint16_t counter = get_flash_counter_value();
 		printf("[INFO] : Counter value: %d \r\n", counter);
-		if(counter < 10) {
+		if(counter < 5) {
 			enter_low_power_mode();
 		} else {
 			set_flash_counter_value(0u);
@@ -121,8 +99,8 @@ int main(void)
 	curr_state = MCU_STATE_CONNECTING;
 	curr_upd_state = UPDATING_INFO_FINISHED;
 
-	xTaskCreate(eInkTask,"eInkTask", 2000,  NULL,  2,  &update_scr_task);
-	xTaskCreate(main_fsm, "ble_update", 2000, (void*) &update_scr_task, 1, NULL);
+	xTaskCreate(e_ink_task,"e_ink_task", 2000,  NULL,  2,  &update_scr_task);
+	xTaskCreate(main_fsm, "main_fsm", 2000, (void*) &update_scr_task, 1, NULL);
 	vTaskStartScheduler();
 
 	while(1);// Will never get here

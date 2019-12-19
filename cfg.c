@@ -102,7 +102,11 @@ int init_peripherial() {
 	ble_init();
     mcwdt_init();
 
-
+    /* Initialize the User LEDs */
+    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED1, CYHAL_GPIO_DIR_OUTPUT,
+                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED2, CYHAL_GPIO_DIR_OUTPUT,
+                              CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
 	return 0;
 }

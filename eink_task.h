@@ -53,7 +53,7 @@ BookingInfo booking_info;
 SemaphoreHandle_t bleSemaphore;
 TaskHandle_t update_scr_task;
 
-void eInkTask(void*);
+void e_ink_task(void*);
 
 void e_ink_init(void);
 

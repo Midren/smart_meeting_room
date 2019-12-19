@@ -669,6 +669,7 @@ void WaitforSwitchPressAndRelease(void)
 
 
 void e_ink_init(void) {
+	bleSemaphore = xSemaphoreCreateCounting(1000, 0);
     /* Configure Switch and LEDs*/
     cyhal_gpio_init((cyhal_gpio_t)CYBSP_LED_RGB_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
     cyhal_gpio_init((cyhal_gpio_t)CYBSP_SW2, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_PULLUP, CYBSP_BTN_OFF);
@@ -715,7 +716,9 @@ void eInkTask(void*arg)
 	for(;;)
 	{
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_ON);
-		vTaskSuspend(NULL);
+		printf("waiting data\r\n");
+		xSemaphoreTake(bleSemaphore, portMAX_DELAY);
+//		vTaskSuspend(NULL);
 
 		/* Using pageNumber as index, update the display with a demo screen
 			Following are the functions that are called in sequence
@@ -729,10 +732,6 @@ void eInkTask(void*arg)
 		(*demoPageArray[pageNumber])();
 
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_OFF);
-
-		/* Wait for a switch press event */
-
-		vTaskDelay(2000);
 
 		/* Cycle through demo pages */
 		pageNumber = (pageNumber+1) % NUMBER_OF_DEMO_PAGES;

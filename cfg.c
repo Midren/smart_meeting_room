@@ -35,8 +35,13 @@ void ble_init(void)
     Cy_BLE_EnableLowPowerMode();
 }
 
+/* WDT Interrupt Number */
+#define WDT_IRQ__INTC_NUMBER                srss_interrupt_IRQn
+#define WDT_IRQ__INTC_CORTEXM4_PRIORITY     7
+
 void mcwdt_init()
 {
+#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
      /* Step 1 - Unlock WDT */
     Cy_MCWDT_Unlock(CYBSP_MCWDT_HW);
 
@@ -49,7 +54,6 @@ void mcwdt_init()
     /* Step 4 - Enable ILO */
     Cy_SysClk_IloEnable();
 
-#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
     const cy_stc_sysint_t mcwdt_isr_config =
     {
       .intrSrc = (IRQn_Type)CYBSP_MCWDT_IRQ,
@@ -58,14 +62,46 @@ void mcwdt_init()
 
     /* Step 5 - Enable interrupt if periodic interrupt mode selected */
     Cy_SysInt_Init(&mcwdt_isr_config, mcwdt_interrupt_handler);
+
     NVIC_EnableIRQ(mcwdt_isr_config.intrSrc);
+
 	Cy_MCWDT_SetInterruptMask(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
-#endif
     /* Step 6- Enable WDT */
 	Cy_MCWDT_Enable(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1, 93u);
 
     /* Step 7- Lock WDT configuration */
     Cy_MCWDT_Lock(CYBSP_MCWDT_HW);
+#endif
+#if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
+     /* Step 1- Unlock WDT */
+    Cy_WDT_Unlock();
+
+    /* Step 2- Write the ignore bits - operate with full 16 bits */
+    Cy_WDT_SetIgnoreBits(0);
+
+	Cy_WDT_SetMatch(0);
+
+    /* Step 4- Clear match event interrupt, if any */
+    Cy_WDT_ClearInterrupt();
+
+    /* Step 5- Enable ILO */
+    Cy_SysClk_IloEnable();
+
+//	const cy_stc_sysint_t WDT_IRQ_cfg = {
+//		.intrSrc = (IRQn_Type)WDT_IRQ__INTC_NUMBER,
+//		.intrPriority = WDT_IRQ__INTC_CORTEXM4_PRIORITY
+//	};
+//
+//	Cy_SysInt_Init(&WDT_IRQ_cfg, mcwdt_interrupt_handler);
+//	NVIC_EnableIRQ(WDT_IRQ_cfg.intrSrc);
+//	Cy_WDT_UnmaskInterrupt();
+
+    /* Step 7- Enable WDT */
+    Cy_WDT_Enable();
+
+    /* Step 8- Lock WDT configuration */
+    Cy_WDT_Lock();
+#endif
 }
 
 int init_peripherial() {

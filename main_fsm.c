@@ -84,6 +84,7 @@ void main_fsm(void* pvParameters) {
 			}
 			case MCU_STATE_UPDATING_DISPLAY: {
 				//TODO: add forming display
+				xSemaphoreGive(bleSemaphore);
 				vTaskResume(update_scr_task);
 				while(curr_state != MCU_STATE_UPDATING_DISPLAY_FINISHED) {
 					taskYIELD();
@@ -267,7 +268,12 @@ void mcwdt_interrupt_handler(void)
     mcwdt_intr_flag = true;
 
 	/* Clear WDT Interrupt */
+#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
+#endif
+#if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
+    Cy_WDT_ClearInterrupt();
+#endif
 
     if(curr_state == MCU_STATE_SHUT_DOWN_BLUETOOTH) {
 		curr_state = MCU_STATE_STARTING;

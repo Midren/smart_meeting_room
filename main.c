@@ -46,7 +46,7 @@ int main(void)
 
 #if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
     /* Configure switch SW2 as hibernate wake up source */
-    Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBPIN1_LOW);
+//    Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBPIN1_LOW);
     Cy_SysPm_SetHibWakeupSource(CY_SYSPM_HIBWDT);
 
     /* Unfreeze IO if device is waking up from hibernate */
@@ -77,9 +77,9 @@ int main(void)
 
 
     /* Initialize the User LEDs */
-    result = cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED1, CYHAL_GPIO_DIR_OUTPUT,
-                             CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-    result |= cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED2, CYHAL_GPIO_DIR_OUTPUT,
+    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED1, CYHAL_GPIO_DIR_OUTPUT,
+                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+    cyhal_gpio_init((cyhal_gpio_t)CYBSP_USER_LED2, CYHAL_GPIO_DIR_OUTPUT,
                               CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
     init_peripherial();
@@ -96,26 +96,29 @@ int main(void)
 
     flash_counter_init();
 
-
-    if(CY_SYSLIB_RESET_SWWDT0 == Cy_SysLib_GetResetReason())
+    printf("Reset reason: %d\r\n", (int) Cy_SysLib_GetResetReason());
+    if(CY_SYSLIB_RESET_HIB_WAKEUP == Cy_SysLib_GetResetReason())
     {
-    	printf("[INFO] : Returned from deep sleep using MCWDT \r\n");
+    	printf("[INFO] : Returned from hibernate using WDT \r\n");
+		increment_flash_counter();
+		uint16_t counter = get_flash_counter_value();
+		printf("[INFO] : Counter value: %d \r\n", counter);
+		if(counter < 10) {
+			enter_low_power_mode();
+		} else {
+			set_flash_counter_value(0u);
+		}
+    } else {
+		printf("[INFO] : Init Flash Counter \r\n");
+    	set_flash_counter_value(0u);
     }
 
-    size_t counter = get_flash_counter_value();
-    printf("[INFO] Counter value: %d \r\n", counter);
-
-    set_flash_counter_value(23u);
-
-    counter = get_flash_counter_value();
-    printf("[INFO] Counter value: %d \r\n", counter);
-
-    set_flash_counter_value(24u);
-
-    counter = get_flash_counter_value();
-    printf("[INFO] Counter value: %d \r\n", counter);
-
+#if(LOW_POWER_MODE == LOW_POWER_DEEP_SLEEP)
     Cy_MCWDT_ClearInterrupt(CYBSP_MCWDT_HW, CY_MCWDT_CTR0 | CY_MCWDT_CTR1);
+#endif
+#if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
+	Cy_WDT_ClearWatchdog();
+#endif
 
 	curr_state = MCU_STATE_CONNECTING;
 

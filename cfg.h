@@ -30,7 +30,8 @@ mcu_state_t curr_state;
 #define LOW_POWER_HIBERNATE 1
 #define LOW_POWER_DEEP_SLEEP 2
 
-#define LOW_POWER_MODE LOW_POWER_DEEP_SLEEP
+#define LOW_POWER_MODE LOW_POWER_HIBERNATE
+//#define LOW_POWER_MODE LOW_POWER_DEEP_SLEEP
 
 bool mcwdt_intr_flag;
 bool gpio_intr_flag;

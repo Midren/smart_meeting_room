@@ -45,6 +45,6 @@ TaskHandle_t update_scr_task;
 
 void eInkTask(void*);
 
-void eInkInit(void);
+void e_ink_init(void);
 
 #endif /* EINK_TASK_H_ */

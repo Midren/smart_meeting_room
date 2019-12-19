@@ -119,8 +119,8 @@ int main(void)
 #if(LOW_POWER_MODE == LOW_POWER_HIBERNATE)
 	Cy_WDT_ClearWatchdog();
 #endif
-
 	curr_state = MCU_STATE_CONNECTING;
+	curr_upd_state = UPDATING_INFO_FINISHED;
 
 	xTaskCreate(eInkTask,"eInkTask", 2000,  NULL,  2,  &update_scr_task);
 	xTaskCreate(main_fsm, "ble_update", 2000, (void*) &update_scr_task, 1, NULL);

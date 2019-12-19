@@ -39,9 +39,16 @@
 #include "semphr.h"
 #include "task.h"
 
+typedef struct {
+	uint8_t owner_name[256];
+	uint8_t owner_name_len;
+	uint64_t start_time;
+	uint64_t end_time;
+} BookingInfo;
+
+BookingInfo booking_info;
 SemaphoreHandle_t bleSemaphore;
 TaskHandle_t update_scr_task;
-
 
 void eInkTask(void*);
 

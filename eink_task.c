@@ -618,53 +618,12 @@ void Show2DGraphics2(void)
 }
 
 
-/*******************************************************************************
-* Function Name: void ClearScreen(void)
-********************************************************************************
-*
-* Summary: This function clears the screen
-*
-* Parameters:
-*  None
-*
-* Return:
-*  None
-*
-*******************************************************************************/
 void ClearScreen(void)
 {
     GUI_SetColor(GUI_BLACK);
     GUI_SetBkColor(GUI_WHITE);
     GUI_Clear();
     UpdateDisplay(CY_EINK_FULL_4STAGE, true);
-}
-
-
-/*******************************************************************************
-* Function Name: void WaitforSwitchPressAndRelease(void)
-********************************************************************************
-*
-* Summary: This implements a simple "Wait for button press and release"
-*			function.  It first waits for the button to be pressed and then
-*			waits for the button to be released.
-*
-* Parameters:
-*  None
-*
-* Return:
-*  None
-*
-* Side Effects:
-*  This is a blocking function and exits only on a button press and release
-*
-*******************************************************************************/
-void WaitforSwitchPressAndRelease(void)
-{
-    /* Wait for SW2 to be pressed */
-    while( CYBSP_BTN_PRESSED != cyhal_gpio_read((cyhal_gpio_t)CYBSP_SW2));
-
-    /* Wait for SW2 to be released */
-    while( CYBSP_BTN_PRESSED == cyhal_gpio_read((cyhal_gpio_t)CYBSP_SW2));
 }
 
 
@@ -686,24 +645,6 @@ void e_ink_init(void) {
 	ShowStartupScreen();
 }
 
-/*******************************************************************************
-* Function Name: void eInkTask(void *arg)
-********************************************************************************
-*
-* Summary: Following functions are performed
-*			1. Initialize the EmWin library
-*			2. Display the startup screen for 2 seconds
-*			3. Display the instruction screen and wait for key press and release
-*			4. Inside a while loop scroll through the 6 demo pages on every
-*				key press and release
-*
-* Parameters:
-*  None
-*
-* Return:
-*  None
-*
-*******************************************************************************/
 void eInkTask(void*arg)
 {
     uint8_t pageNumber = 0;
@@ -716,9 +657,7 @@ void eInkTask(void*arg)
 	for(;;)
 	{
 		cyhal_gpio_write((cyhal_gpio_t)CYBSP_LED_RGB_GREEN, CYBSP_LED_STATE_ON);
-		printf("waiting data\r\n");
 		xSemaphoreTake(bleSemaphore, portMAX_DELAY);
-//		vTaskSuspend(NULL);
 
 		/* Using pageNumber as index, update the display with a demo screen
 			Following are the functions that are called in sequence

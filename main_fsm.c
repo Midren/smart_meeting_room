@@ -35,9 +35,13 @@ static void findAdvInfo(uint8_t *adv, uint8_t len) {
 	}
 }
 
-void readMsg() {
+void readMsg(uint16_t characteristic_char_index) {
+//	cy_stc_ble_gattc_read_req_t myVal = {
+//		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_LINEDATA_SERVICE_INDEX].customServChar[CY_BLE_CUSTOMC_LINEDATA_DATA_CHAR_INDEX].customServCharHandle[0],
+//		.connHandle = cy_ble_connHandle[0]
+//	};
 	cy_stc_ble_gattc_read_req_t myVal = {
-		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_LINEDATA_SERVICE_INDEX].customServChar[CY_BLE_CUSTOMC_LINEDATA_DATA_CHAR_INDEX].customServCharHandle[0],
+		.attrHandle = cy_ble_customCServ[CY_BLE_CUSTOMC_BOOKING_INFO_SERVICE_INDEX].customServChar[characteristic_char_index].customServCharHandle[0],
 		.connHandle = cy_ble_connHandle[0]
 	};
 
@@ -70,15 +74,46 @@ void main_fsm(void* pvParameters) {
 				Cy_BLE_ProcessEvents();
 				if(Cy_BLE_GetConnectionState(app_conn_handle) == CY_BLE_CONN_STATE_CLIENT_DISCOVERED) {
 					curr_state = MCU_STATE_UPDATING_INFO;
-					readMsg();
+					curr_upd_state = UPDATING_INFO_START_TIME;
 					cyhal_gpio_write((cyhal_gpio_t)CYBSP_USER_LED1, CYBSP_LED_STATE_ON);
 				} else {
 					cyhal_gpio_toggle((cyhal_gpio_t)CYBSP_USER_LED1);
 				}
 				break;
 			}
-			case MCU_STATE_SHUT_DOWN_BLUETOOTH:
 			case MCU_STATE_UPDATING_INFO: {
+				switch(curr_upd_state) {
+					case UPDATING_INFO_START_TIME: {
+						readMsg(CY_BLE_CUSTOMC_BOOKING_INFO_STARTTIME_CHAR_INDEX);
+						curr_state = MCU_STATE_UPDATING_INFO_PROCESSING;
+						break;
+					}
+					case UPDATING_INFO_END_TIME: {
+						readMsg(CY_BLE_CUSTOMC_BOOKING_INFO_ENDTIME_CHAR_INDEX);
+						curr_state = MCU_STATE_UPDATING_INFO_PROCESSING;
+						break;
+					}
+					case UPDATING_INFO_OWNER_NAME: {
+						readMsg(CY_BLE_CUSTOMC_BOOKING_INFO_OWNER_CHAR_INDEX);
+						curr_state = MCU_STATE_UPDATING_INFO_PROCESSING;
+						break;
+					}
+					case UPDATING_INFO_FINISHED: {
+						printf("[DEBUG] : Start time: %lu\r\n", (uint32_t) booking_info.start_time);
+						printf("[DEBUG] : End   time: %lu\r\n", (uint32_t) booking_info.end_time);
+						printf("[DEBUG] : Owner name: ");
+						for(int i = 0; i < booking_info.owner_name_len; i++) {
+							printf("%c", booking_info.owner_name[i]);
+						}
+						printf("\r\n");
+						curr_state = MCU_STATE_UPDATING_DISPLAY;
+						break;
+					}
+				}
+				break;
+			}
+			case MCU_STATE_SHUT_DOWN_BLUETOOTH:
+			case MCU_STATE_UPDATING_INFO_PROCESSING: {
 				Cy_BLE_ProcessEvents();
 				break;
 			}
@@ -244,14 +279,38 @@ void stack_event_handler(uint32_t event, void* eventParam) {
 
         case CY_BLE_EVT_GATTC_READ_RSP:
         {
+
+			static BookingInfo info = {
+				.owner_name = {},
+				.owner_name_len = 0,
+				.start_time = 0lu,
+				.end_time = 0lu,
+			};
+
         	printf("[INFO] : GATTC read response\r\n");
         	cy_stc_ble_gattc_read_rsp_param_t * readRspParam = (cy_stc_ble_gattc_read_rsp_param_t*)eventParam;
-        	printf("[INFO] : Read len - %d\r\n", readRspParam->value.len);
-        	for(int i = 0; i < readRspParam->value.len; i++) {
-        		printf("%x", readRspParam->value.val[i]);
+        	switch(curr_upd_state) {
+        	case UPDATING_INFO_START_TIME:
+				memcpy((uint8_t*)&info.start_time, readRspParam->value.val, readRspParam->value.len);
+        		curr_upd_state = UPDATING_INFO_END_TIME;
+        		curr_state = MCU_STATE_UPDATING_INFO;
+        		break;
+        	case UPDATING_INFO_END_TIME:
+				memcpy((uint8_t*)&info.end_time, readRspParam->value.val, readRspParam->value.len);
+        		curr_upd_state = UPDATING_INFO_OWNER_NAME;
+        		curr_state = MCU_STATE_UPDATING_INFO;
+        		break;
+        	case UPDATING_INFO_OWNER_NAME:
+				memcpy(&info.owner_name, readRspParam->value.val, readRspParam->value.len);
+				info.owner_name_len = readRspParam->value.len;
+        		curr_upd_state = UPDATING_INFO_FINISHED;
+				curr_state = MCU_STATE_UPDATING_INFO;
+				booking_info = info;
+        		break;
+        	case UPDATING_INFO_FINISHED:
+        		printf("Redundant read req was made \r\n");
+        		break;
         	}
-        	printf("\r\n");
-        	curr_state = MCU_STATE_UPDATING_DISPLAY;
             break;
         }
         default:

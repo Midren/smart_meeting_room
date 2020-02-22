@@ -1,6 +1,7 @@
-build/
-GeneratedSource/
-.cproject
-.project
-.mtbLaunchConfigs
-.settings
+MCU_2_Display/build/
+MCU_2_Display/GeneratedSource/
+MCU_2_Display/libs/TARGET_CY8CKIT-062-BLE/COMPONENT_BSP_DESIGN_MODUS/GeneratedSource/
+MCU_2_Display/.cproject
+MCU_2_Display/.project
+MCU_2_Display/.mtbLaunchConfigs
+MCU_2_Display/.settings
